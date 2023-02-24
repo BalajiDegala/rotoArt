@@ -1,0 +1,2 @@
+# rotoArt
+Automatic Rotoscopic Application
