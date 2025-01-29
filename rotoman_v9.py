@@ -346,7 +346,7 @@ class RotoMan(qtw.QMainWindow):
             listOffiles = os.listdir(self.file_path)
             self.new_list = listOffiles
             self.file_list = [self.file_path + "/" + f for f in sorted(
-                listOffiles) if f.endswith(".exr") or f.endswith(".jpg")]
+                listOffiles) if f.endswith((".png","jpg", ".exr"))]
             self.defaultFframe = self.file_list[:]
             self.current_file = self.file_list[0]
             self.loadImage()
@@ -377,7 +377,7 @@ class RotoMan(qtw.QMainWindow):
                 self.inputs - frame): (self.outputs - frame)+1]
             print("new_list",self.new_list)
             self.file_list = [self.file_path + "/" + f for f in sorted(
-                self.new_list) if f.endswith(".exr") or f.endswith(".jpg")]
+                self.new_list) if f.endswith((".png","jpg", ".exr"))]
             self.current_file = self.file_list[0]
             self.loadImage()
             self.displayFrameNumber()
