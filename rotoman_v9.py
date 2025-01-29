@@ -13,7 +13,6 @@ from torchvision import models
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 
-
 fcn = None
 
 
@@ -28,7 +27,7 @@ class RotoMan(qtw.QMainWindow):
         self.bg2 = "background-color: #9a83c5 ;border-style: outset;border-radius: 04px; color: black; padding: 6px; "
         self.bg3 = "background-color: #191933 ;border-style: outset;border-radius: 04px; color: black; padding: 2px; "
 
-        self.current_file = "roto.jpeg"
+        self.current_file = "/dd/dept/pipeline/Balaji/rotoArt/roto.jpeg"
         self.centralwidget = qtw.QWidget(self)
         self.setCentralWidget(self.centralwidget)
         self.label = qtw.QLabel(self)
@@ -50,6 +49,7 @@ class RotoMan(qtw.QMainWindow):
         self.defaults()
         self.loadImage()
 
+
     def actions(self):
 
         self.actionOpen_Image.triggered.connect(self.open_image)
@@ -68,6 +68,7 @@ class RotoMan(qtw.QMainWindow):
         self.render_click.clicked.connect(self.thread)
         self.reset.clicked.connect(self.reset_view)
         self.button_zoom_in.clicked.connect(self.on_zoom_in)
+        self.button_fit.clicked.connect(self.fitToFrame)
         self.button_zoom_out.clicked.connect(self.on_zoom_out)
 
     def info_bar(self):
@@ -150,6 +151,7 @@ class RotoMan(qtw.QMainWindow):
         self.brightness_slider.setTickInterval(30)
         self.brightness_slider.valueChanged.connect(self.loadImage)
 
+
     def frames(self):
 
         self.in_label = qtw.QLabel(self)
@@ -158,6 +160,7 @@ class RotoMan(qtw.QMainWindow):
         self.inp.setStyleSheet(self.bg)
         self.fframe_display = qtw.QLCDNumber(self)
         self.left_frame = qtw.QPushButton(self)
+        self.left_frame.setShortcut("<")
         self.left_frame.setText("<")
         self.left_frame.setStyleSheet(self.bg2)
         self.left_frame.setMinimumSize(200, 20)
@@ -167,6 +170,7 @@ class RotoMan(qtw.QMainWindow):
         self.left_play.setMinimumSize(200, 20)
         self.frame_display = qtw.QLCDNumber(self)
         self.right_frame = qtw.QPushButton(self)
+        self.right_frame.setShortcut(">")
         self.right_frame.setText(">")
         self.right_frame.setStyleSheet(self.bg2)
         self.right_frame.setMinimumSize(200, 20)
@@ -187,6 +191,10 @@ class RotoMan(qtw.QMainWindow):
         self.button_zoom_in.setText('Zoom +')
         self.button_zoom_in.setShortcut("+")
         self.button_zoom_in.setStyleSheet(self.bg2)
+        self.button_fit = qtw.QPushButton(self)
+        self.button_fit.setText('Fit to Frame')
+        self.button_fit.setShortcut("F")
+        self.button_fit.setStyleSheet(self.bg2)
         self.button_zoom_out = qtw.QPushButton(self)
         self.button_zoom_out.setText('Zoom -')
         self.button_zoom_out.setShortcut("-")
@@ -196,18 +204,17 @@ class RotoMan(qtw.QMainWindow):
         self.frames_layout.addWidget(self.in_label)
         self.frames_layout.addWidget(self.inp)
         self.frames_layout.addWidget(self.fframe_display)
-        self.frames_layout.addWidget(self.left_play)
         self.frames_layout.addWidget(self.left_frame)
         self.frames_layout.addWidget(self.frame_display)
         self.frames_layout.addWidget(self.right_frame)
-        self.frames_layout.addWidget(self.right_play)
         self.frames_layout.addWidget(self.lframe_display)
         self.frames_layout.addWidget(self.out)
         self.frames_layout.addWidget(self.out_label)
         self.frames_layout.addWidget(self.reset)
         self.frames_layout.addWidget(self.button_zoom_out)
+        self.frames_layout.addWidget(self.button_fit)
         self.frames_layout.addWidget(self.button_zoom_in)
-
+        
     def render_tab(self):
 
         self.location = qtw.QLabel(self)
@@ -281,7 +288,6 @@ class RotoMan(qtw.QMainWindow):
         self.label.resize(self.pixmap.width(), self.pixmap.height())
         self.label.setSizePolicy(
             qtw.QSizePolicy.Ignored, qtw.QSizePolicy.Ignored)
-        # self.label.setScaledContents(True)
 
     def displayFrameNumber(self):
 
@@ -308,7 +314,7 @@ class RotoMan(qtw.QMainWindow):
         self.firstframe_number = 0000
         self.lastframe_number = 0000
         self.defaultFframe = []
-        self.savelocation = "/dd/home/balajid"
+        self.savelocation = "/PATH/TO/SAVE/LOCATION" ##Update me as per your needs
 
     def open_image(self):
 
@@ -340,12 +346,13 @@ class RotoMan(qtw.QMainWindow):
             listOffiles = os.listdir(self.file_path)
             self.new_list = listOffiles
             self.file_list = [self.file_path + "/" + f for f in sorted(
-                listOffiles) if f.endswith(".exr") or f.endswith(".png")]
+                listOffiles) if f.endswith(".exr") or f.endswith(".jpg")]
             self.defaultFframe = self.file_list[:]
             self.current_file = self.file_list[0]
             self.loadImage()
             self.displayFrameNumber()
             self.imageHeight = self.theimg.shape[0]
+            self.imageWidth = self.theimg.shape[1]
             msg = "image width : {} , image height : {} , channels : {} , FirstFrame : {}, LastFrame = {} ".format(
                 self.theimg.shape[1], self.theimg.shape[0], self.theimg.shape[2], self.firstframe_number, self.lastframe_number)
             self.info.setText(str(msg))
@@ -355,17 +362,22 @@ class RotoMan(qtw.QMainWindow):
             self.info.setText(
                 "please select the proper folder directory, Error details : {}".format(e))
 
+    def sorter_func(self,x):
+        num = x.split('.')[-2]
+        return int(num)
+
     def reset_view(self):
         try:
-
-            frame = int(re.findall(r'\d+', self.defaultFframe[0])[-1])
+            frame = int(re.findall('\d+', self.defaultFframe[0])[-1])
             self.inputs = int(self.inp.text())
             self.outputs = int(self.out.text())
-            listOffiles = os.listdir(self.file_path)
+            files_list = os.listdir(self.file_path)
+            listOffiles = sorted(files_list, key=self.sorter_func)
             self.new_list = listOffiles[(
                 self.inputs - frame): (self.outputs - frame)+1]
+            print("new_list",self.new_list)
             self.file_list = [self.file_path + "/" + f for f in sorted(
-                self.new_list) if f.endswith(".exr") or f.endswith(".png")]
+                self.new_list) if f.endswith(".exr") or f.endswith(".jpg")]
             self.current_file = self.file_list[0]
             self.loadImage()
             self.displayFrameNumber()
@@ -414,16 +426,17 @@ class RotoMan(qtw.QMainWindow):
             self.info.setText("please check your folder directory again")
 
     def previous_play(self):
-        # try:
-            self.previous_image()
-        # except Exception as e:
-        #     print(e)
-        #     self.info.setText("please check your folder directory again")
-
+        self.previous_image()
+        
     def on_zoom_in(self, event):
         self.imageHeight += 100
         self.resize_image()
-
+    
+    def fitToFrame(self):
+        self.loadImage()
+        scaled_pixmap = self.pixmap.scaled(1920,1080, qtc.Qt.KeepAspectRatio, qtc.Qt.SmoothTransformation)
+        self.label.setPixmap(scaled_pixmap)
+        
     def on_zoom_out(self, event):
         self.imageHeight -= 100
         self.resize_image()
@@ -470,8 +483,7 @@ class RotoMan(qtw.QMainWindow):
         t1.start()
 
     def createMatte(self, filename, matteName, size):
-        # img = Image.open(filename).convert("RGB")
-        img = cv2.imread(filename)
+        img = cv2.imread(filename, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.blur(img, (self.blur_slider.value(),
                        self.blur_slider.value()))
@@ -503,12 +515,17 @@ class RotoMan(qtw.QMainWindow):
                 matteName = currentfile[:mainNameend] + \
                     "_matte" + currentfile[mainNameend:]
                 matteDirectory = self.savelocation + "/" + matteName
-                size = int(height_updated or self.imageHeight)
+                if self.imageHeight < self.imageWidth:
+                    size = int(height_updated or self.imageHeight)
+                else:
+                    size = int(height_updated or self.imageWidth)
                 self.createMatte(sourceFile, matteDirectory, size)
                 sourceFile_im = cv2.imread(sourceFile)
                 matteDirectory_im = cv2.imread(matteDirectory)
-                self.theimg = cv2.addWeighted(
-                    sourceFile_im, 0.5, matteDirectory_im, 0.4, 0)
+                if sourceFile_im.shape[0] == matteDirectory_im.shape[0]:
+                    self.theimg = cv2.addWeighted(sourceFile_im, 0.5, matteDirectory_im, 0.4, 0)
+                else:
+                    self.theimg = matteDirectory_im
                 self.showimg = qtg.QImage(
                     self.theimg.data, self.theimg.shape[1], self.theimg.shape[0], self.theimg.shape[1] * 3, qtg.QImage.Format_RGB888).rgbSwapped()
                 self.pixmap = qtg.QPixmap.fromImage(self.showimg).scaled(self.showimg.width(
@@ -519,6 +536,8 @@ class RotoMan(qtw.QMainWindow):
                 self.label.setSizePolicy(
                     qtw.QSizePolicy.Ignored, qtw.QSizePolicy.Ignored)
                 self.info.setText(matteName)
+                matteNumber = re.findall('\d+', sourceFile)
+                self.frame_display.display(matteNumber[-1])
                 print("created", matteName)
         except Exception as e:
             print(e)
@@ -535,5 +554,6 @@ class RotoMan(qtw.QMainWindow):
 
 if __name__ == "__main__":
     app = qtw.QApplication(sys.argv)
+    app.setWindowIcon(qtg.QIcon('/PATH/TO/YOUR_LOGO'))
     window = RotoMan()
     sys.exit(app.exec_())
